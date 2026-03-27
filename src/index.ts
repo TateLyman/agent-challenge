@@ -178,3 +178,36 @@ const solanaDefiPlugin: Plugin = {
 };
 
 export default solanaDefiPlugin;
+
+// === SOL PRICE ACTION ===
+const solPriceAction: Action = {
+  name: "SOL_PRICE",
+  description: "Get the current SOL price and market data",
+  similes: ["sol price", "solana price", "how much is sol", "sol value"],
+  examples: [[
+    { user: "user1", content: { text: "What's the SOL price?" } },
+    { user: "SolDeFi Agent", content: { text: "Checking SOL price..." } }
+  ]] as ActionExample[][],
+  validate: async (_runtime: IAgentRuntime, message: Memory) => {
+    const text = (message.content as any)?.text?.toLowerCase() || "";
+    return text.includes("sol") && (text.includes("price") || text.includes("worth") || text.includes("value") || text.includes("how much"));
+  },
+  handler: async (_runtime: IAgentRuntime, _message: Memory, _state: State, _options: any, callback: HandlerCallback) => {
+    try {
+      const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true");
+      const data = await res.json();
+      const sol = data.solana;
+      const price = sol.usd.toFixed(2);
+      const change = sol.usd_24h_change?.toFixed(2) || "0";
+      const mcap = sol.usd_market_cap ? (sol.usd_market_cap / 1e9).toFixed(2) : "?";
+      const vol = sol.usd_24h_vol ? (sol.usd_24h_vol / 1e9).toFixed(2) : "?";
+      
+      await callback({ text: `**SOL Price: $${price}**\n24h Change: ${parseFloat(change) >= 0 ? "+" : ""}${change}%\nMarket Cap: $${mcap}B\n24h Volume: $${vol}B` });
+    } catch (error) {
+      await callback({ text: `Error fetching SOL price: ${(error as Error).message}` });
+    }
+  }
+};
+
+// Update plugin to include new action
+solanaDefiPlugin.actions.push(solPriceAction);
